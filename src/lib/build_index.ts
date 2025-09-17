@@ -14,6 +14,12 @@ export async function buildSearchIndex() {
   const fileRoot = path.resolve(".")
   const pagesPath = path.join(fileRoot, ".svelte-kit/output/prerendered/pages")
 
+  // Check if the pages directory exists before trying to glob
+  if (!fs.existsSync(pagesPath)) {
+    console.log("Pages directory doesn't exist yet, skipping search index build")
+    return { index: null, indexData: [], buildTime: Date.now() }
+  }
+
   const allFiles = glob.sync(path.join(pagesPath, "**/*.html"))
   for (const file of allFiles) {
     try {
@@ -62,16 +68,21 @@ export async function buildSearchIndex() {
 
 // Build search index into the output directory, for use in the build process (see vite.config.js)
 export async function buildAndCacheSearchIndex() {
-  const data = await buildSearchIndex()
+  try {
+    const data = await buildSearchIndex()
 
-  const dir = path.resolve("./.svelte-kit/output/client/search")
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
+    const dir = path.resolve("./.svelte-kit/output/client/search")
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
+    }
+
+    fs.writeFileSync(
+      path.resolve("./.svelte-kit/output/client/search/api.json"),
+      JSON.stringify(data),
+    )
+    console.log("Search index built")
+  } catch (error) {
+    console.warn("Failed to build search index:", error)
+    // Don't fail the build if search index fails
   }
-
-  fs.writeFileSync(
-    path.resolve("./.svelte-kit/output/client/search/api.json"),
-    JSON.stringify(data),
-  )
-  console.log("Search index built")
 }
